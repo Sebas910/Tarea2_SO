@@ -26,12 +26,12 @@
 #include <time.h>
 #include <errno.h>
 
-#define FILAS 7          /* 2 filas del trono + 5 de la cuadricula */
+#define FILAS 7          // 2 filas de trono + 5 de tablero
 #define COLS 5
 #define NUM_PERROS 12
 #define PERROS_PARA_GANAR 6
 
-/* Contenido de cada casilla */
+//contenido casilla
 #define INVALIDA -1
 #define VACIA 0
 #define PUMA 1
@@ -41,8 +41,8 @@ typedef struct {
     int min_delay;
     int max_delay;
     unsigned int seed;
-    int max_movs;       /* limite de movimientos para que la partida no sea infinita */
-    int prob_fallo;     /* probabilidad (por mil) de que una ficha falle en cada ciclo */
+    int max_movs;       //limite de movimientos para eliminar partidas infinitas
+    int prob_fallo;     // probabilidad de que una ficha falle (por ciclo)
     int tablero[FILAS][COLS];
 } Config;
 
@@ -50,8 +50,8 @@ typedef struct {
     int id;
     int ocupada;
     int num_partida;
-    int id_puma;        /* id del cliente que juega con el Puma */
-    int id_perros;      /* id del cliente que juega con los Perros */
+    int id_puma;       
+    int id_perros;     
 
     int tablero[FILAS][COLS];
     int puma_f, puma_c;
@@ -62,36 +62,36 @@ typedef struct {
     int movimientos;
 
     int activa;
-    int fallo_puma;     /* se activa si el jugador Puma falla */
-    int fallo_perros;   /* idem para el jugador Perros */
+    int fallo_puma;     // solo si falla puma
+    int fallo_perros;   // solo si falla perro
 
     pthread_mutex_t mutex;
 } Mesa;
 
 typedef struct {
     Mesa *mesa;
-    int idx;            /* numero de perro (0..11) */
+    int idx;            // numero de perro (0-11)
     unsigned int seed;
 } ArgFicha;
 
-/* ---------- Variables globales ---------- */
-static volatile sig_atomic_t terminar = 0;   /* la pone en 1 el handler de SIGINT */
+// variables globales
+static volatile sig_atomic_t terminar = 0;   // la pone en 1 el handler de SIGINT
 static Config config;
 static Mesa *mesas;
 static int N, M;
 
-static sem_t sem_mesas;    /* cuenta las mesas libres (parte en M) */
-static sem_t sem_cola;     /* cuenta los clientes esperando en la cola */
+static sem_t sem_mesas;    // cuenta las mesas libres (parte en M)
+static sem_t sem_cola;     // cuenta los clientes esperando en la cola
 static pthread_mutex_t mutex_cola = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_mesas = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_log = PTHREAD_MUTEX_INITIALIZER;
 
-static int *cola;          /* ids de clientes que ya llegaron */
+static int *cola;          // ids de clientes que ya llegaron
 static int cola_fin = 0;
 
 static FILE *archivo_log;
 
-/* ---------- Utilidades ---------- */
+// utility
 
 static void manejador_sigint(int sig) {
     (void)sig;
@@ -105,13 +105,12 @@ static void dormir_ms(int ms) {
     nanosleep(&ts, NULL);
 }
 
-/* Retardo aleatorio entre min_delay y max_delay */
 static int retardo_aleatorio(unsigned int *seed) {
     int rango = config.max_delay - config.min_delay + 1;
     return config.min_delay + rand_r(seed) % rango;
 }
 
-/* Imprime en consola y en torneo.log (con mutex para que no se mezclen las lineas) */
+// imprime en consola y en torneo.log (con mutex para que no se mezclen las lineas)
 static void log_msg(const char *fmt, ...) {
     va_list args;
 
@@ -131,8 +130,8 @@ static void log_msg(const char *fmt, ...) {
 }
 
 /*
- * Espera un semaforo, pero con timeout de 100 ms para ir revisando si
- * llego SIGINT. Retorna 0 si lo obtuvo y -1 si hay que terminar.
+  espera un semaforo, pero con timeout de 100 ms para ir revisando si
+  llego SIGINT. Retorna 0 si lo obtuvo y -1 si hay que terminar
  */
 static int esperar_sem(sem_t *s) {
     while (!terminar) {
@@ -148,9 +147,9 @@ static int esperar_sem(sem_t *s) {
     return -1;
 }
 
-/* ---------- Tablero ---------- */
+// tablero 
 
-/* Dice si (f,c) es una de las 28 intersecciones del tablero */
+// dice si (f,c) es una de las 28 intersecciones del tablero
 static int es_casilla(int f, int c) {
     if (f < 0 || f >= FILAS || c < 0 || c >= COLS) return 0;
     if (f == 0) return c == 2;
@@ -159,16 +158,16 @@ static int es_casilla(int f, int c) {
 }
 
 /*
- * Dice si hay una linea entre dos casillas. Segun la figura del enunciado:
- *  - el trono (0,2) se une a (1,1), (1,3) y baja directo a (2,2)
- *  - (1,1) y (1,3) se unen entre ellas
- *  - (1,1) baja a (2,0) y (2,1); (1,3) baja a (2,3) y (2,4)
- *  - la cuadricula solo tiene lineas horizontales y verticales
+  Dice si hay una linea entre dos casillas. Segun la figura del enunciado:
+   - el trono (0,2) se une a (1,1), (1,3) y baja directo a (2,2)
+   - (1,1) y (1,3) se unen entre ellas
+   - (1,1) baja a (2,0) y (2,1); (1,3) baja a (2,3) y (2,4)
+   - la cuadricula solo tiene lineas horizontales y verticales
  */
 static int son_adyacentes(int f1, int c1, int f2, int c2) {
     if (!es_casilla(f1, c1) || !es_casilla(f2, c2)) return 0;
 
-    /* ordenamos para que la primera casilla sea la de arriba */
+    // ordenamos para que la primera casilla sea la de arriba
     if (f2 < f1 || (f2 == f1 && c2 < c1)) {
         int tf = f1, tc = c1;
         f1 = f2; c1 = c2;
@@ -179,18 +178,18 @@ static int son_adyacentes(int f1, int c1, int f2, int c2) {
         return (f2 == 1) || (f2 == 2 && c2 == 2);
     }
     if (f1 == 1) {
-        if (f2 == 1) return 1;  /* (1,1) con (1,3) */
+        if (f2 == 1) return 1;  // (1,1) con (1,3)
         if (f2 == 2) return c2 == c1 || (c1 == 1 && c2 == 0) || (c1 == 3 && c2 == 4);
         return 0;
     }
     return (abs(f1 - f2) + abs(c1 - c2)) == 1;
 }
 
-/* El salto es valido si va en linea recta sobre dos aristas (o el caso del trono) */
+// el salto es valido si va en linea recta sobre dos aristas
 static int salto_valido(int f1, int c1, int fm, int cm, int f2, int c2) {
     if (!son_adyacentes(f1, c1, fm, cm) || !son_adyacentes(fm, cm, f2, c2)) return 0;
 
-    /* caso especial: trono <-> (3,2) pasando por (2,2) (la linea no tiene el mismo largo) */
+    // caso especial del trono <-> (3,2) pasando por (2,2) (la linea no tiene el mismo largo)
     if (f1 == 0 && c1 == 2 && fm == 2 && f2 == 3) return 1;
     if (f2 == 0 && c2 == 2 && fm == 2 && f1 == 3) return 1;
 
@@ -198,8 +197,8 @@ static int salto_valido(int f1, int c1, int fm, int cm, int f2, int c2) {
 }
 
 /*
- * Validacion del Juez: revisa adyacencia, que el destino este libre y,
- * si es captura, que haya un perro en el medio.
+  validacion del Juez: revisa adyacencia, que el destino este libre y,
+  si es captura, que haya un perro en el medio
  */
 static int validar_movimiento(Mesa *m, int tipo, int f1, int c1,
                               int fm, int cm, int f2, int c2, int captura) {
@@ -209,12 +208,12 @@ static int validar_movimiento(Mesa *m, int tipo, int f1, int c1,
 
     if (!captura) return son_adyacentes(f1, c1, f2, c2);
 
-    if (tipo != PUMA) return 0;  /* los perros no capturan */
+    if (tipo != PUMA) return 0; 
     if (!es_casilla(fm, cm) || m->tablero[fm][cm] != PERRO) return 0;
     return salto_valido(f1, c1, fm, cm, f2, c2);
 }
 
-/* Llena df/dc con los destinos simples validos de una ficha. Retorna cuantos hay. */
+// Llena df/dc con los destinos simples validos de una ficha y retorna cuantos hay
 static int destinos_libres(Mesa *m, int tipo, int f, int c, int df[], int dc[]) {
     int n = 0;
     for (int i = 0; i < FILAS; i++) {
@@ -229,7 +228,7 @@ static int destinos_libres(Mesa *m, int tipo, int f, int c, int df[], int dc[]) 
     return n;
 }
 
-/* Busca una captura posible para el Puma. Retorna 1 si encontro y llena los datos. */
+// busca una captura posible para el puma, retorna 1 si encontro y llena los datos
 static int buscar_captura(Mesa *m, int *idx_perro, int *nf, int *nc) {
     for (int p = 0; p < NUM_PERROS; p++) {
         if (!m->perro_vivo[p]) continue;
@@ -248,7 +247,7 @@ static int buscar_captura(Mesa *m, int *idx_perro, int *nf, int *nc) {
     return 0;
 }
 
-/* Si devuelve 0 el Puma esta acorralado */
+// devuelve 0 si el puma está acorralado
 static int puma_tiene_movimientos(Mesa *m) {
     int df[30], dc[30];
     int p, nf, nc;
@@ -262,7 +261,6 @@ static char simbolo(int v, char vacio) {
     return vacio;
 }
 
-/* Muestra el tablero. Se llama con el mutex de la mesa tomado. */
 static void imprimir_tablero(Mesa *m, const char *titulo) {
     char buf[2048];
     int n = 0;
@@ -286,15 +284,15 @@ static void imprimir_tablero(Mesa *m, const char *titulo) {
     log_msg("%s", buf);
 }
 
-/* ---------- Configuracion ---------- */
+// config
 
 static void tablero_por_defecto(int t[FILAS][COLS]) {
     for (int f = 0; f < FILAS; f++)
         for (int c = 0; c < COLS; c++)
             t[f][c] = es_casilla(f, c) ? VACIA : INVALIDA;
 
-    t[0][2] = PUMA;                   /* el puma parte en el trono */
-    for (int c = 0; c < COLS; c++) {  /* 12 perros: 2 filas completas + 2 en la fila 4 */
+    t[0][2] = PUMA;                   // puma parte en el torno
+    for (int c = 0; c < COLS; c++) {  // 12 perros: 2 filas completas + 2 en la fila 4
         t[2][c] = PERRO;
         t[3][c] = PERRO;
     }
@@ -303,13 +301,13 @@ static void tablero_por_defecto(int t[FILAS][COLS]) {
 }
 
 /*
- * Formato de config.txt (una cosa por linea, # para comentarios):
- *   MIN_DELAY_MS=50
- *   MAX_DELAY_MS=300
- *   SEED=1234
- *   MAX_MOVS=250
- *   PROB_FALLO=0            (por mil)
- *   FILA_0=-1,-1,1,-1,-1    (FILA_0 .. FILA_6, igual que la matriz del tablero)
+  formato de config.txt (una cosa por linea, # para comentarios):
+    MIN_DELAY_MS=50
+    MAX_DELAY_MS=300
+    SEED=1234
+    MAX_MOVS=250
+    PROB_FALLO=0            (por mil)
+    FILA_0=-1,-1,1,-1,-1    (FILA_0 .. FILA_6, igual que la matriz del tablero)
  */
 static void leer_config(const char *ruta) {
     config.min_delay = 50;
@@ -361,7 +359,7 @@ static void leer_config(const char *ruta) {
     if (config.max_movs <= 0) config.max_movs = 250;
     if (config.prob_fallo < 0) config.prob_fallo = 0;
 
-    /* Solo se acepta el tablero si vienen las 7 filas y tiene 1 puma y 12 perros */
+    // solo se acepta el tablero si hay 7 filas, tiene 1 puma y 12 perros
     if (filas_leidas == (1 << FILAS) - 1) {
         int pumas = 0, perros = 0, ok = 1;
         for (int i = 0; i < FILAS; i++) {
@@ -388,9 +386,9 @@ static void leer_config(const char *ruta) {
             config.min_delay, config.max_delay, config.seed, config.max_movs, config.prob_fallo);
 }
 
-/* ---------- Fichas ---------- */
+//fichas
 
-/* Cada ciclo la ficha puede "fallar" segun prob_fallo (para probar la seccion 4.1) */
+// cada ciclo la ficha puede "fallar" segun prob_fallo
 static int ficha_falla(unsigned int *seed) {
     if (config.prob_fallo <= 0) return 0;
     return (int)(rand_r(seed) % 1000) < config.prob_fallo;
@@ -410,7 +408,7 @@ static void *hilo_puma(void *arg) {
             break;
         }
 
-        /* Fallo del jugador: se avisa, se suelta el mutex y el hilo termina */
+        // Fallo del jugador: se avisa, se suelta el mutex y el hilo termina
         if (ficha_falla(&seed)) {
             m->fallo_puma = 1;
             log_msg("[Mesa %d] El jugador Puma #%d fallo\n", m->id, m->id_puma);
@@ -423,7 +421,7 @@ static void *hilo_puma(void *arg) {
         int p, nf, nc;
 
         if (buscar_captura(m, &p, &nf, &nc)) {
-            /* si puede capturar, lo prefiere antes que un movimiento normal */
+            // si puede capturar, lo prefiere antes que un movimiento normal
             int fp = m->perro_f[p];
             int cp = m->perro_c[p];
             m->tablero[pf][pc] = VACIA;
@@ -484,8 +482,7 @@ static void *hilo_perro(void *arg) {
         int df[30], dc[30];
         int n = destinos_libres(m, PERRO, f, c, df, dc);
 
-        /* Si dos perros quieren la misma casilla, gana el que tomo primero el mutex:
-         * el otro ya no la ve libre cuando calcula sus destinos. */
+        // si dos perros quieren la misma casilla, gana el que tomó primero el mutex
         if (n > 0) {
             int e = rand_r(&seed) % n;
             m->tablero[f][c] = VACIA;
@@ -501,7 +498,7 @@ static void *hilo_perro(void *arg) {
     return NULL;
 }
 
-/* ---------- Juez ---------- */
+//juez
 
 static void preparar_mesa(Mesa *m) {
     memcpy(m->tablero, config.tablero, sizeof(m->tablero));
@@ -543,7 +540,7 @@ static void *hilo_juez(void *arg) {
     imprimir_tablero(m, "INICIO DE LA PARTIDA");
     pthread_mutex_unlock(&m->mutex);
 
-    /* Creamos los hilos de las fichas */
+    //hilo para las fichas
     arg_puma.mesa = m;
     arg_puma.idx = -1;
     arg_puma.seed = config.seed + m->num_partida * 100;
@@ -556,7 +553,7 @@ static void *hilo_juez(void *arg) {
         perros_creados[i] = (pthread_create(&tid_perros[i], NULL, hilo_perro, &arg_perros[i]) == 0);
     }
 
-    /* El juez revisa el estado de la partida cada 40 ms */
+    // el juez revisa el estado de la partida cada 40 ms
     while (!terminar) {
         pthread_mutex_lock(&m->mutex);
         const char *fin = NULL;
@@ -584,7 +581,7 @@ static void *hilo_juez(void *arg) {
         dormir_ms(40);
     }
 
-    /* Si salimos por Ctrl+C la partida sigue activa, hay que cerrarla */
+    // si salimos por ctrl+c la partida sigue activa, hay que cerrarla
     pthread_mutex_lock(&m->mutex);
     if (m->activa) {
         m->activa = 0;
@@ -592,14 +589,14 @@ static void *hilo_juez(void *arg) {
     }
     pthread_mutex_unlock(&m->mutex);
 
-    /* Esperamos a todas las fichas antes de destruir el mutex */
+    // esperamos a todas las fichas antes de destruir el mutex
     if (puma_creado) pthread_join(tid_puma, NULL);
     for (int i = 0; i < NUM_PERROS; i++) {
         if (perros_creados[i]) pthread_join(tid_perros[i], NULL);
     }
     pthread_mutex_destroy(&m->mutex);
 
-    /* Liberamos la mesa y avisamos al matchmaker */
+    // liberamos la mesa y avisamos al matchmaker
     int id = m->id;
     int partida = m->num_partida;
     pthread_mutex_lock(&mutex_mesas);
@@ -611,9 +608,9 @@ static void *hilo_juez(void *arg) {
     return NULL;
 }
 
-/* ---------- Clientes y matchmaker ---------- */
+//clientes + matchmaker
 
-/* Cada cliente "llega" despues de un rato y se mete a la cola */
+// cada cliente llega despues de un rato y se mete a la cola
 static void *hilo_cliente(void *arg) {
     int id = (int)(long)arg;
     unsigned int seed = config.seed + id;
@@ -630,7 +627,7 @@ static void *hilo_cliente(void *arg) {
     return NULL;
 }
 
-/* arg = cantidad de clientes que se alcanzaron a crear */
+// arg = cantidad de clientes que se alcanzaron a crear
 static void *hilo_matchmaker(void *arg) {
     int total = *(int *)arg;
     int emparejados = 0;
@@ -644,7 +641,7 @@ static void *hilo_matchmaker(void *arg) {
     }
 
     while (!terminar && emparejados + 2 <= total) {
-        /* esperamos a que haya 2 clientes en la cola */
+        // esperamos a que haya 2 clientes en la cola
         if (esperar_sem(&sem_cola) != 0) break;
         if (esperar_sem(&sem_cola) != 0) break;
 
@@ -657,7 +654,7 @@ static void *hilo_matchmaker(void *arg) {
         log_msg("[Matchmaker] Pareja: Puma=#%d, Perros=#%d. Esperando mesa...\n",
                 id_puma, id_perros);
 
-        /* si estan las M mesas ocupadas nos quedamos esperando aqui */
+        // si estan las M mesas ocupadas nos quedamos esperando aqui
         if (esperar_sem(&sem_mesas) != 0) break;
 
         int idx = -1;
@@ -671,7 +668,7 @@ static void *hilo_matchmaker(void *arg) {
         }
         pthread_mutex_unlock(&mutex_mesas);
 
-        if (idx < 0) {   /* no deberia pasar, el semaforo asegura que hay una libre */
+        if (idx < 0) {   // no deberia pasar, el semaforo asegura que hay una libre
             sem_post(&sem_mesas);
             continue;
         }
@@ -703,7 +700,7 @@ static void *hilo_matchmaker(void *arg) {
     return NULL;
 }
 
-/* ---------- main ---------- */
+//main
 
 int main(int argc, char *argv[]) {
     if (argc < 3 || argc > 4) {
@@ -718,7 +715,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* Handler de Ctrl+C */
+    // handler del ctrl+c
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = manejador_sigint;
@@ -746,7 +743,7 @@ int main(int argc, char *argv[]) {
 
     log_msg("=== Torneo Komikan: N=%d jugadores, M=%d mesas ===\n", N, M);
 
-    /* Lanzamos los clientes */
+    // lanzamos los clientes
     int creados = 0;
     for (int i = 1; i <= N && !terminar; i++) {
         if (pthread_create(&clientes[creados], NULL, hilo_cliente, (void *)(long)i) == 0) {
@@ -769,7 +766,7 @@ int main(int argc, char *argv[]) {
         log_msg("\n[Servidor] SIGINT recibida, partidas cerradas\n");
     }
 
-    /* Liberamos todo */
+    // todo se libera
     sem_destroy(&sem_mesas);
     sem_destroy(&sem_cola);
     pthread_mutex_destroy(&mutex_cola);
