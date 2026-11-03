@@ -1,0 +1,17 @@
+# Configuracion de prueba con fallos aleatorios de jugadores (Seccion 4.1)
+MIN_DELAY_MS=30
+MAX_DELAY_MS=100
+SEED=54321
+MAX_MOVS=200
+
+# Probabilidad de 15 por mil (1.5%) en cada turno de que un jugador falle/abandone
+PROB_FALLO=15
+
+# Tablero estandar
+FILA_0=-1,-1,1,-1,-1
+FILA_1=-1,0,-1,0,-1
+FILA_2=2,2,2,2,2
+FILA_3=2,2,2,2,2
+FILA_4=2,0,0,0,2
+FILA_5=0,0,0,0,0
+FILA_6=0,0,0,0,0

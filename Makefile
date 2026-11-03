@@ -1,33 +1,23 @@
-# Torneo de Komikan Concurrente - Tarea 2 SO
-# Uso rapido:  make run N=6 M=2            make run N=6 M=2 CFG=configs/config.txt
-CC      ?= gcc
-CFLAGS  := -Wall -Wextra -std=c17 -pthread
-SRC     := src/torneo.c
-N       ?= 6
-M       ?= 2
-CFG     ?=
+# Makefile - Tarea 2: Torneo de Komikan Concurrente
+# Autores: Sebastian Quintero y Alan Troncoso
 
-.PHONY: all debug asan tsan run test clean
+CC = gcc
+CFLAGS = -Wall -Wextra -std=c17 -pthread
+TARGET = torneo
+SRC = torneo.c
 
-all: torneo
+all: $(TARGET)
 
-torneo: $(SRC)
-	$(CC) $(CFLAGS) -O2 -o $@ $<
+$(TARGET): $(SRC)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
 
-debug: $(SRC)
-	$(CC) $(CFLAGS) -g -O0 -o torneo_debug $<
+run: $(TARGET)
+	./$(TARGET) 4 2 config.txt
 
-asan: $(SRC)
-	$(CC) $(CFLAGS) -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -o torneo_asan $<
-
-tsan: $(SRC)
-	$(CC) $(CFLAGS) -g -O1 -fsanitize=thread -o torneo_tsan $<
-
-run: torneo
-	./torneo $(N) $(M) $(CFG)
-
-test: asan
-	bash scripts/test.sh
+run_fallos: $(TARGET)
+	./$(TARGET) 4 2 config_fallos.txt
 
 clean:
-	rm -f torneo torneo_debug torneo_asan torneo_tsan torneo.log
+	rm -f $(TARGET) torneo.log
+
+.PHONY: all run run_fallos clean

@@ -1,0 +1,23 @@
+# Archivo de configuracion por defecto para el Torneo de Komikan
+# Retardos en milisegundos entre movimientos de cada ficha
+MIN_DELAY_MS=50
+MAX_DELAY_MS=200
+
+# Semilla para reproducibilidad
+SEED=12345
+
+# Limite maximo de movimientos antes de declarar empate
+MAX_MOVS=250
+
+# Probabilidad (por mil) de que un jugador falle en cada ciclo (0 = sin fallos)
+PROB_FALLO=0
+
+# Estado inicial del tablero (7 filas x 5 columnas)
+# -1 = Casilla invalida, 0 = Vacia, 1 = Puma, 2 = Perro
+FILA_0=-1,-1,1,-1,-1
+FILA_1=-1,0,-1,0,-1
+FILA_2=2,2,2,2,2
+FILA_3=2,2,2,2,2
+FILA_4=2,0,0,0,2
+FILA_5=0,0,0,0,0
+FILA_6=0,0,0,0,0
