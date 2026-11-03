@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compilar (release)",
+      "type": "shell",
+      "command": "make",
+      "args": ["torneo"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Compilar (debug)",
+      "type": "shell",
+      "command": "make",
+      "args": ["debug"],
+      "group": "build",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Ejecutar torneo (pide N y M)",
+      "type": "shell",
+      "command": "./torneo ${input:N} ${input:M}",
+      "dependsOn": "Compilar (release)",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Ejecutar torneo con config.txt",
+      "type": "shell",
+      "command": "./torneo ${input:N} ${input:M} configs/config.txt",
+      "dependsOn": "Compilar (release)",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pruebas automaticas (ASan + SIGINT + fallos)",
+      "type": "shell",
+      "command": "make test",
+      "group": "test",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Limpiar",
+      "type": "shell",
+      "command": "make clean",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    { "id": "N", "type": "promptString", "description": "N = numero total de jugadores/clientes", "default": "6" },
+    { "id": "M", "type": "promptString", "description": "M = maximo de mesas simultaneas", "default": "2" }
+  ]
+}

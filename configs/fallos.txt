@@ -1,0 +1,5 @@
+# Prueba de resiliencia (Seccion 4.1): 50% de probabilidad de que un jugador "caiga" a mitad de partida
+MIN_DELAY_MS=50
+MAX_DELAY_MS=150
+SEED=7
+PROB_FALLO_MILESIMAS=500
