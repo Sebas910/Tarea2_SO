@@ -26,7 +26,8 @@
 #include <time.h>
 #include <errno.h>
 
-#define FILAS 7          // 2 filas de trono + 5 de tablero
+// 2 filas de trono + 5 de tablero
+#define FILAS 7          
 #define COLS 5
 #define NUM_PERROS 12
 #define PERROS_PARA_GANAR 6
